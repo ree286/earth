@@ -89,7 +89,7 @@ var globes = function() {
              * @returns {Array} the range at which this globe can be zoomed.
              */
             scaleExtent: function() {
-                return [25, 3000];
+                return [350, 8000];
             },
 
             /**
@@ -269,6 +269,8 @@ var globes = function() {
                     .attr("d", path);
                 mapSvg.append("path")
                     .attr("class", "coastline");
+                mapSvg.append("path")
+                    .attr("class", "borders");
                 mapSvg.append("path")
                     .attr("class", "lakes");
                 foregroundSvg.append("use")

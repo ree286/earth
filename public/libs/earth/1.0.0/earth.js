@@ -209,11 +209,22 @@
      * @param resource the GeoJSON resource's URL
      * @returns {Object} a promise for GeoJSON topology features: {boundaryLo:, boundaryHi:}
      */
-    function buildMesh(resource) {
+    function buildMesh(resource)
+    {
         var cancel = this.cancel;
         report.status("Downloading...");
-        return µ.loadJson(resource).then(function(topo) {
+        return when.all([
+            µ.loadJson(resource),
+            µ.loadJson(µ.isMobile() ? "/data/boundaries_tiny.json" : "/data/boundaries_110m.json"),
+            µ.loadJson(µ.isMobile() ? "/data/boundaries_110m.json" : "/data/boundaries_50m.json")
+        ]).then(function(results)
+        {
             if (cancel.requested) return null;
+
+            var topo = results[0];
+            var bordersLoJson = results[1];
+            var bordersHiJson = results[2];
+
             log.time("building meshes");
             var o = topo.objects;
             var coastLo = topojson.feature(topo, µ.isMobile() ? o.coastline_tiny : o.coastline_110m);
@@ -221,9 +232,12 @@
             var lakesLo = topojson.feature(topo, µ.isMobile() ? o.lakes_tiny : o.lakes_110m);
             var lakesHi = topojson.feature(topo, µ.isMobile() ? o.lakes_110m : o.lakes_50m);
             log.timeEnd("building meshes");
+
             return {
                 coastLo: coastLo,
                 coastHi: coastHi,
+                bordersLo: bordersLoJson,
+                bordersHi: bordersHiJson,
                 lakesLo: lakesLo,
                 lakesHi: lakesHi
             };
@@ -298,6 +312,7 @@
 
         var path = d3.geo.path().projection(globe.projection).pointRadius(7);
         var coastline = d3.select(".coastline");
+        var borders = d3.select(".borders");
         var lakes = d3.select(".lakes");
         d3.selectAll("path").attr("d", path);  // do an initial draw -- fixes issue with safari
 
@@ -337,6 +352,7 @@
             inputController, {
                 moveStart: function() {
                     coastline.datum(mesh.coastLo);
+                    borders.datum(mesh.bordersLo);
                     lakes.datum(mesh.lakesLo);
                     rendererAgent.trigger("start");
                 },
@@ -345,6 +361,7 @@
                 },
                 moveEnd: function() {
                     coastline.datum(mesh.coastHi);
+                    borders.datum(mesh.bordersHi);
                     lakes.datum(mesh.lakesHi);
                     d3.selectAll("path").attr("d", path);
                     rendererAgent.trigger("render");
